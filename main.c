@@ -5,273 +5,423 @@
 //LIG 1 projet ASD 2
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define MAX 100
-
-struct Client {
+// ===== STRUCTURES =====
+typedef struct Client {
     int id;
     char nom[50];
-};
-struct Chambre {
-    int numero;
+    struct Client* suiv;
+} Client;
+
+typedef struct Chambre {
+    int num;
     float prix;
-    int disponible;
-};
+    int dispo;
+    struct Chambre* suiv;
+} Chambre;
 
-struct Reservation {
-    int idClient;
-    int numChambre;
-    int nbNuits;
-};
-struct Client clients[MAX];
-struct Chambre chambres[MAX];
-struct Reservation reservations[MAX];
+typedef struct Reservation {
+    int idC;
+    int numCh;
+    int nuits;
+    struct Reservation* suiv;
+} Reservation;
 
-int nbClients = 0, nbChambres = 0, nbReservations = 0;
+// ===== LISTES =====
+Client* LC = NULL;
+Chambre* LCH = NULL;
+Reservation* LR = NULL;
 
-int clientExiste(int id) {
-    int i;
-    for(i=0;i<nbClients;i++)
-        if(clients[i].id == id) return 1;
-    return 0;
-}
+// ===== CENTER TEXT =====
+void centerText(char* text) {
+    int width = 80;
+    int len = strlen(text);
+    int spaces = (width - len) / 2;
+    int i;   // declaration kharej for
 
-int chambreExiste(int num) {
-    int i;
-    for(i=0;i<nbChambres;i++)
-        if(chambres[i].numero == num) return 1;
-    return 0;
-}
-
-int verifierChambre(int num) {
-    int i;
-    for(i = 0; i < nbChambres; i++) {
-        if(chambres[i].numero == num && chambres[i].disponible == 1)
-            return i;
+    for (i = 0; i < spaces; i++) {
+        printf(" ");
     }
-    return -1;
+    printf("%s\n", text);
+}
+
+// ===== RECHERCHE =====
+Client* chercherClient(int id) {
+    Client* t = LC;
+    while (t) {
+        if (t->id == id) return t;
+        t = t->suiv;
+    }
+    return NULL;
+}
+
+Chambre* chercherChambre(int num) {
+    Chambre* t = LCH;
+    while (t) {
+        if (t->num == num) return t;
+        t = t->suiv;
+    }
+    return NULL;
+}
+
+// ===== SAUVEGARDE =====
+void sauvegarderClients() {
+    FILE* f = fopen("clients.txt", "w");
+    Client* t = LC;
+    while (t) {
+        fprintf(f, "%d;%s\n", t->id, t->nom);
+        t = t->suiv;
+    }
+    fclose(f);
+}
+
+void sauvegarderChambres() {
+    FILE* f = fopen("chambres.txt", "w");
+    Chambre* t = LCH;
+    while (t) {
+        fprintf(f, "%d;%.2f;%d\n", t->num, t->prix, t->dispo);
+        t = t->suiv;
+    }
+    fclose(f);
+}
+
+void sauvegarderReservations() {
+    FILE* f = fopen("reservations.txt", "w");
+    Reservation* t = LR;
+    while (t) {
+        fprintf(f, "%d;%d;%d\n", t->idC, t->numCh, t->nuits);
+        t = t->suiv;
+    }
+    fclose(f);
+}
+
+// ===== CHARGEMENT =====
+void chargerClients() {
+    FILE* f = fopen("clients.txt", "r");
+    if (!f) return;
+    Client* n;
+    while (1) {
+        n = malloc(sizeof(Client));
+        if (fscanf(f, "%d;%49[^\n]\n", &n->id, n->nom) != 2) {
+            free(n);
+            break;
+        }
+        n->suiv = LC;
+        LC = n;
+    }
+    fclose(f);
+}
+
+void chargerChambres() {
+    FILE* f = fopen("chambres.txt", "r");
+    if (!f) return;
+    Chambre* n;
+    while (1) {
+        n = malloc(sizeof(Chambre));
+        if (fscanf(f, "%d;%f;%d\n", &n->num, &n->prix, &n->dispo) != 3) {
+            free(n);
+            break;
+        }
+        n->suiv = LCH;
+        LCH = n;
+    }
+    fclose(f);
+}
+
+void chargerReservations() {
+    FILE* f = fopen("reservations.txt", "r");
+    if (!f) return;
+    Reservation* n;
+    while (1) {
+        n = malloc(sizeof(Reservation));
+        if (fscanf(f, "%d;%d;%d\n", &n->idC, &n->numCh, &n->nuits) != 3) {
+            free(n);
+            break;
+        }
+        n->suiv = LR;
+        LR = n;
+    }
+    fclose(f);
 }
 
 // ===== CLIENT =====
 void ajouterClient() {
-    int id;
-    printf("ID: ");
-    scanf("%d", &id);
-    getchar();
+    Client* n = malloc(sizeof(Client));
+    printf("ID: "); scanf("%d", &n->id); getchar();
 
-    if(clientExiste(id)) {
-        printf("Client existe deja !\n");
-        return;
+    if (chercherClient(n->id)) {
+        printf("Existe deja\n"); free(n); return;
     }
 
-    clients[nbClients].id = id;
     printf("Nom: ");
-    fgets(clients[nbClients].nom, 50, stdin);
-    clients[nbClients].nom[strcspn(clients[nbClients].nom, "\n")] = 0;
+    fgets(n->nom, 50, stdin);
+    n->nom[strcspn(n->nom, "\n")] = 0;
 
-    nbClients++;
-    printf("Client ajoute !\n");
+    n->suiv = LC;
+    LC = n;
+    sauvegarderClients();
 }
 
 void afficherClients() {
-    int i;
-    if(nbClients==0){printf("Aucun client.\n"); return;}
-    for(i = 0; i < nbClients; i++)
-        printf("ID:%d | Nom:%s\n", clients[i].id, clients[i].nom);
-}
-
-void modifierClient() {
-    int id, i;
-    printf("ID du client a modifier: ");
-    scanf("%d", &id);
-    getchar();
-
-    for(i = 0; i < nbClients; i++) {
-        if(clients[i].id == id) {
-            printf("Nouveau nom: ");
-            fgets(clients[i].nom, 50, stdin);
-            clients[i].nom[strcspn(clients[i].nom, "\n")] = 0;
-            printf("Modifie !\n");
-            return;
-        }
+    Client* t = LC;
+    while (t) {
+        printf("%d - %s\n", t->id, t->nom);
+        t = t->suiv;
     }
-    printf("Client non trouve.\n");
 }
 
 void supprimerClient() {
-    int id, i, j;
-    printf("ID du client a supprimer: ");
-    scanf("%d", &id);
+    int id;
+    printf("ID: "); scanf("%d", &id);
 
-    for(i = 0; i < nbClients; i++) {
-        if(clients[i].id == id) {
-            for(j = i; j < nbClients - 1; j++)
-                clients[j] = clients[j + 1];
-            nbClients--;
-            printf("Supprime !\n");
-            return;
-        }
-    }
-    printf("Client non trouve.\n");
+    Client *t = LC, *p = NULL;
+    while (t && t->id != id) { p = t; t = t->suiv; }
+
+    if (!t) { printf("Introuvable\n"); return; }
+
+    if (p) p->suiv = t->suiv;
+    else LC = t->suiv;
+
+    free(t);
+    sauvegarderClients();
+}
+
+void modifierClient() {
+    int id;
+    printf("ID: "); scanf("%d", &id); getchar();
+
+    Client* t = chercherClient(id);
+    if (!t) { printf("Introuvable\n"); return; }
+
+    printf("Nouveau nom: ");
+    fgets(t->nom, 50, stdin);
+    t->nom[strcspn(t->nom, "\n")] = 0;
+
+    sauvegarderClients();
 }
 
 // ===== CHAMBRE =====
 void ajouterChambre() {
-    int num;
-    printf("Numero: ");
-    scanf("%d", &num);
+    Chambre* n = malloc(sizeof(Chambre));
+    printf("Numero: "); scanf("%d", &n->num);
 
-    if(chambreExiste(num)) {
-        printf("Chambre existe deja !\n");
-        return;
+    if (chercherChambre(n->num)) {
+        printf("Existe deja\n"); free(n); return;
     }
 
-    chambres[nbChambres].numero = num;
-    printf("Prix: ");
-    scanf("%f", &chambres[nbChambres].prix);
+    printf("Prix: "); scanf("%f", &n->prix);
+    n->dispo = 1;
 
-    chambres[nbChambres].disponible = 1;
-    nbChambres++;
-    printf("Chambre ajoutee !\n");
+    n->suiv = LCH;
+    LCH = n;
+    sauvegarderChambres();
 }
 
 void afficherChambres() {
-    int i;
-    if(nbChambres==0){printf("Aucune chambre.\n"); return;}
-    for(i = 0; i < nbChambres; i++)
-        printf("Num:%d | Prix:%.2f | %s\n",
-               chambres[i].numero,
-               chambres[i].prix,
-               chambres[i].disponible ? "Libre" : "Occupee");
-}
-
-void modifierChambre() {
-    int num, i;
-    printf("Numero chambre a modifier: ");
-    scanf("%d", &num);
-
-    for(i = 0; i < nbChambres; i++) {
-        if(chambres[i].numero == num) {
-            printf("Nouveau prix: ");
-            scanf("%f", &chambres[i].prix);
-            printf("Modifie !\n");
-            return;
-        }
+    Chambre* t = LCH;
+    while (t) {
+        printf("%d | %.2f | %s\n", t->num, t->prix, t->dispo ? "Libre" : "Occupee");
+        t = t->suiv;
     }
-    printf("Chambre non trouvee.\n");
 }
 
 void supprimerChambre() {
-    int num, i, j;
-    printf("Numero chambre a supprimer: ");
-    scanf("%d", &num);
+    int num;
+    printf("Numero: "); scanf("%d", &num);
 
-    for(i = 0; i < nbChambres; i++) {
-        if(chambres[i].numero == num) {
-            for(j = i; j < nbChambres - 1; j++)
-                chambres[j] = chambres[j + 1];
-            nbChambres--;
-            printf("Supprimee !\n");
-            return;
-        }
-    }
-    printf("Chambre non trouvee.\n");
+    Chambre *t = LCH, *p = NULL;
+    while (t && t->num != num) { p = t; t = t->suiv; }
+
+    if (!t) { printf("Introuvable\n"); return; }
+
+    if (p) p->suiv = t->suiv;
+    else LCH = t->suiv;
+
+    free(t);
+    sauvegarderChambres();
+}
+
+void modifierChambre() {
+    int num;
+    printf("Numero: "); scanf("%d", &num);
+
+    Chambre* ch = chercherChambre(num);
+    if (!ch) { printf("Introuvable\n"); return; }
+
+    printf("Prix: "); scanf("%f", &ch->prix);
+    printf("Dispo (1/0): "); scanf("%d", &ch->dispo);
+
+    sauvegarderChambres();
 }
 
 // ===== RESERVATION =====
 void reserver() {
-    int id, num, nbNuits, index;
-    printf("ID client: ");
-    scanf("%d", &id);
-    if(!clientExiste(id)){printf("Client non trouve !\n"); return;}
+    int id, num, nuits;
 
-    printf("Numero chambre: ");
-    scanf("%d", &num);
+    printf("ID client: "); scanf("%d", &id);
+    if (!chercherClient(id)) { printf("Client inexistant\n"); return; }
 
-    index = verifierChambre(num);
-    if(index == -1){printf("Chambre non disponible !\n"); return;}
+    printf("Chambre: "); scanf("%d", &num);
+    Chambre* ch = chercherChambre(num);
 
-    printf("Nombre de nuits: ");
-    scanf("%d", &nbNuits);
-    if(nbNuits <=0){printf("Nombre de nuits invalide !\n"); return;}
-
-    reservations[nbReservations].idClient = id;
-    reservations[nbReservations].numChambre = num;
-    reservations[nbReservations].nbNuits = nbNuits;
-    nbReservations++;
-
-    chambres[index].disponible = 0;
-    printf("Reservation effectuee !\n");
-}
-
-// ===== FACTURATION =====
-void facturation() {
-    int id, i, j, found=0;
-    float totalGeneral = 0;
-    printf("ID client: ");
-    scanf("%d", &id);
-
-    if(!clientExiste(id)){printf("Client non trouve !\n"); return;}
-
-    printf("\n--- FACTURE ---\nClient ID: %d\n", id);
-    for(i = 0; i < nbReservations; i++) {
-        if(reservations[i].idClient == id) {
-            int num = reservations[i].numChambre;
-            int nuits = reservations[i].nbNuits;
-
-            for(j = 0; j < nbChambres; j++) {
-                if(chambres[j].numero == num) {
-                    float total = nuits * chambres[j].prix;
-                    totalGeneral += total;
-                    printf("Chambre %d | Nuits: %d | Total: %.2f DT\n", num, nuits, total);
-                    chambres[j].disponible = 1; // libération
-                    found = 1;
-                }
-            }
-        }
+    if (!ch || !ch->dispo) {
+        printf("Non disponible\n");
+        return;
     }
 
-    if(!found) printf("Aucune reservation pour ce client.\n");
-    else printf("TOTAL GENERAL: %.2f DT\n", totalGeneral);
+    printf("Nuits: "); scanf("%d", &nuits);
+
+    Reservation* r = malloc(sizeof(Reservation));
+    r->idC = id;
+    r->numCh = num;
+    r->nuits = nuits;
+
+    r->suiv = LR;
+    LR = r;
+
+    ch->dispo = 0;
+
+    sauvegarderReservations();
+    sauvegarderChambres();
 }
 
-// ===== MENU =====
-int main() {
-    int choix;
-    do {
-        printf("\n=== MENU HOTEL ===\n");
-        printf("1. Ajouter Client\n");
-        printf("2. Afficher Clients\n");
-        printf("3. Modifier Client\n");
-        printf("4. Supprimer Client\n");
-        printf("5. Ajouter Chambre\n");
-        printf("6. Afficher Chambres\n");
-        printf("7. Modifier Chambre\n");
-        printf("8. Supprimer Chambre\n");
-        printf("9. Reservation\n");
-        printf("10. Facturation\n");
-        printf("0. Quitter\n");
+void afficherReservations() {
+    Reservation* r = LR;
+    while (r) {
+        printf("Client %d -> Chambre %d (%d nuits)\n", r->idC, r->numCh, r->nuits);
+        r = r->suiv;
+    }
+}
 
+void supprimerReservation() {
+    int id, num;
+    printf("ID client: "); scanf("%d", &id);
+    printf("Chambre: "); scanf("%d", &num);
+
+    Reservation *r = LR, *p = NULL;
+
+    while (r && !(r->idC == id && r->numCh == num)) {
+        p = r;
+        r = r->suiv;
+    }
+
+    if (!r) { printf("Introuvable\n"); return; }
+
+    Chambre* ch = chercherChambre(num);
+    if (ch) ch->dispo = 1;
+
+    if (p) p->suiv = r->suiv;
+    else LR = r->suiv;
+
+    free(r);
+    sauvegarderReservations();
+    sauvegarderChambres();
+}
+
+// ===== FACTURE =====
+void facture() {
+    int id;
+    float total = 0;
+
+    printf("ID client: "); scanf("%d", &id);
+
+    Reservation* r = LR;
+    while (r) {
+        if (r->idC == id) {
+            Chambre* ch = chercherChambre(r->numCh);
+            if (ch) {
+                float t = ch->prix * r->nuits;
+                total += t;
+                printf("Chambre %d : %.2f\n", ch->num, t);
+            }
+        }
+        r = r->suiv;
+    }
+
+    printf("TOTAL = %.2f\n", total);
+}
+
+// ===== MENUS =====
+void menuPrincipal() {
+    printf("\n");
+    centerText("===== MENU PRINCIPAL =====");
+    centerText("1. Client");
+    centerText("2. Chambre");
+    centerText("3. Reservation");
+    centerText("4. Facture");
+    centerText("0. Quitter");
+}
+
+// sous-menus normal
+void menuClient() {
+    printf("\n--- CLIENT ---\n");
+    printf("1. Ajouter\n2. Afficher\n3. Supprimer\n4. Modifier\n0. Retour\n");
+}
+
+void menuChambre() {
+    printf("\n--- CHAMBRE ---\n");
+    printf("1. Ajouter\n2. Afficher\n3. Supprimer\n4. Modifier\n0. Retour\n");
+}
+
+void menuReservation() {
+    printf("\n--- RESERVATION ---\n");
+    printf("1. Reserver\n2. Afficher\n3. Supprimer\n0. Retour\n");
+}
+
+// ===== MAIN =====
+int main() {
+    int choix, sous;
+
+    chargerClients();
+    chargerChambres();
+    chargerReservations();
+
+    do {
+        menuPrincipal();
         printf("Choix: ");
         scanf("%d", &choix);
 
-        switch(choix) {
-            case 1: ajouterClient(); break;
-            case 2: afficherClients(); break;
-            case 3: modifierClient(); break;
-            case 4: supprimerClient(); break;
-            case 5: ajouterChambre(); break;
-            case 6: afficherChambres(); break;
-            case 7: modifierChambre(); break;
-            case 8: supprimerChambre(); break;
-            case 9: reserver(); break;
-            case 10: facturation(); break;
-            case 0: printf("Au revoir !\n"); break;
-            default: printf("Choix invalide !\n");
+        switch (choix) {
+        case 1:
+            do {
+                menuClient();
+                scanf("%d", &sous);
+                if (sous == 1) ajouterClient();
+                else if (sous == 2) afficherClients();
+                else if (sous == 3) supprimerClient();
+                else if (sous == 4) modifierClient();
+            } while (sous != 0);
+            break;
+
+        case 2:
+            do {
+                menuChambre();
+                scanf("%d", &sous);
+                if (sous == 1) ajouterChambre();
+                else if (sous == 2) afficherChambres();
+                else if (sous == 3) supprimerChambre();
+                else if (sous == 4) modifierChambre();
+            } while (sous != 0);
+            break;
+
+        case 3:
+            do {
+                menuReservation();
+                scanf("%d", &sous);
+                if (sous == 1) reserver();
+                else if (sous == 2) afficherReservations();
+                else if (sous == 3) supprimerReservation();
+            } while (sous != 0);
+            break;
+
+        case 4:
+            facture();
+            break;
         }
 
-    } while(choix != 0);
+    } while (choix != 0);
 
     return 0;
 }
