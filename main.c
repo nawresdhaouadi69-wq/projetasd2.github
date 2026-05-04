@@ -39,7 +39,7 @@ void centerText(char* text) {
     int width = 80;
     int len = strlen(text);
     int spaces = (width - len) / 2;
-    int i;   // declaration kharej for
+    int i;   
 
     for (i = 0; i < spaces; i++) {
         printf(" ");
